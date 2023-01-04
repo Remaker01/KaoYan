@@ -3,33 +3,33 @@
 使用示例\n
 import kaoyan\n
 all = kaoyan.getSchoolList(subject="0839",stype="全日制")\n
-details = kaoyan.getSchoolMajorInfo(all[1][4])\n
-details_with_subjs = kaoyan.getSchoolMajorInfo(all[2][4],get_subj=True)\n
-    # 获取学校列表后进行并发请求。建议使用并发时指定输出，直接使用getSchoolMajorInfo的返回值可导致详细信息和学校不对应\n
+details = kaoyan.getSchoolMajorList(all[1][4])\n
+details_with_subjs = kaoyan.getSchoolMajorList(all[2][4],get_subj=True)\n
+    # 获取学校列表后进行并发请求。建议并发时指定输出，直接使用getSchoolMajorList的返回值可导致详细信息和学校不对应\n
 pool = ThreadPool()\n
 for each in all:\n
-    with open(each[0]) as fp:\n
-        pool.apply_async(kaoyan.getSchoolMajorInfo(each[4],output_fp=fp))
+    fp = open(each[0],"w")\n
+    pool.apply_async(kaoyan.getSchoolMajorList(each[4],False,fp))
 '''
 from urllib3.poolmanager import PoolManager
 import json,re,sys
 from lxml import etree
 HOST = "https://yz.chsi.com.cn"
-head = {
+_head = {
     "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:90.0) Gecko/20100101 Firefox/91.0",
     "Accept":"gzip, deflate",
     "Referer":HOST + "/zsml/zyfx_search.jsp",
     "Connection":"keep-alive"
 }
-_http = PoolManager(num_pools=3,headers=head)
-_province_table = []
+__http = PoolManager(num_pools=3,headers=_head)
+__province_table = []
 def _get_location_index(loc:str):
     '''将地区名称映射为数字'''
-    global _province_table
-    if len(_province_table) == 0:
-        respo = _http.request_encode_body("POST",url=HOST + "/zsml/pages/getSs.jsp")
-        _province_table = json.loads(respo.data)
-    for item in _province_table:
+    global __province_table
+    if len(__province_table) == 0:
+        respo = __http.request_encode_body("POST",url=HOST + "/zsml/pages/getSs.jsp")
+        __province_table = json.loads(respo.data)
+    for item in __province_table:
         if item["mc"] == loc:
             return item["dm"]
     return ""
@@ -43,48 +43,17 @@ def _get_number_from_script(script:str):
     NUM = re.compile("[0-9]+")
     _find = NUM.findall(script)
     return _find[0]
-def getSchoolList(subject,location="",school="",stype=""):
-    '''
-    获取学校列表
-
-    Parameters:
-    ---------------
-    subject:学科类别(代码)，必填项\n
-    location:地域,默认为空。如果给定错误省份将在全国范围内搜索\n
-    school:学校,默认为空\n
-    stype:学习方式,全日制("1")非全日制("2"),默认为空
-
-    Returns:
-    ---------------
-    list[list]  包含搜索到的各学校信息的列表\n
-    每个学校信息是包括学校名、省份、是否有研究生院、是否为自划线以及详细信息URL的列表
-    '''
-    TABLE_HEAD = ["招生单位","所在地","研究生院","自划线院校","URL"]
-    if stype == "全日制":
-        xxfs = "1"
-    elif stype == "非全日制":
-        xxfs = "2"
-    elif stype != "1" and stype != "2":
-        raise ValueError("非法的学习方式")
-    loc = _get_location_index(location)
+def _get_schoollist_one_page(data:dict,pageno=1):
     schools = []
-    data = {
-        "ssdm":loc, # 省份
-        "dwmc":school, # 学校
-        "mldm":"", # 大类
-        "mlmc":"",
-        "yjxkdm":subject, # 学科类别
-        "xxfs":xxfs # 学习方式
-    }
-    # print("已封装请求数据",data)
-    respo = _http.request_encode_url("POST",url=HOST+"/zsml/queryAction.do",fields=data) # 注意data是标在url上，所以要指明encode_url
+    data.update({"pageno":str(pageno)})
+    respo = __http.request_encode_url("POST",url=HOST+"/zsml/queryAction.do",fields=data) # 注意data是标在url上，所以要指明encode_url
     tree = etree.HTML(respo.data.decode("utf-8"))
     trs = tree.xpath("//body//div//table[@class=\"ch-table\"]/tbody/tr")
     # print(trs)
     for tr in trs:
-        name = tr.xpath("./td[1]//a/text()")
+        name = tr.xpath("./td[1]//a/text()") # 如果到最后一个就找不到对应元素
         if len(name) == 0:
-            return [TABLE_HEAD]
+            return []
         name = name[0]
         sub_url = HOST + tr.xpath("./td[1]//a/@href")[0] #结构td/frame/a
         loc = tr.xpath("./td[2]/text()")[0]
@@ -94,10 +63,58 @@ def getSchoolList(subject,location="",school="",stype=""):
         zi_huaxian = (len(td4) != 0)
         info = [name,_remove_redundant(loc),str(gdu_instit),str(zi_huaxian),sub_url]
         schools.append(info)
+    return schools
+def getSchoolList(subject,location="",school="",stype="",majoring=""):
+    '''
+    获取学校列表
+
+    Parameters:
+    ---------------
+    subject:学科类别(代码)，必填项\n
+    location:地域,默认为空。如果不给定或给定错误省份将在全国范围内搜索\n
+    school:学校,默认为空\n
+    stype:学习方式,"全日制"("1") or "非全日制"("2"),默认为空\n
+    majoring:专业名称,即二级学科名称
+
+    Returns:
+    ---------------
+    list[list]  包含搜索到的各学校信息的列表\n
+    每个学校信息是包括学校名、省份、是否有研究生院、是否为自划线以及详细信息URL的列表
+    '''
+    TABLE_HEAD = ["招生单位","所在地","研究生院","自划线院校","URL"]
+    xxfs = stype # issue2:注意xxfs必须存在(不要在if里定义变量)
+    if stype == "全日制":
+        xxfs = "1"
+    elif stype == "非全日制":
+        xxfs = "2"
+    elif stype != "1" and stype != "2" and len(stype)>0:
+        raise ValueError("非法的学习方式")
+    loc = _get_location_index(location)
+    schools = []
+    data = {
+        "ssdm":loc, # 省市代码
+        "dwmc":school, # 单位名称
+        "mldm":"", # 门类代码
+        "mlmc":"",
+        "yjxkdm":subject, # 学科代码
+        "zymc":majoring,
+        "xxfs":xxfs # 学习方式
+    }
+    # print("已封装请求数据",data)
+    pageno = 1
+    first = [] # 第一页的第一所高校，如果某一页第一所和第一页的一样就认为页数已经超出
+    while True:
+        now = _get_schoollist_one_page(data,pageno)
+        if len(now) == 0 or now[0] == first:
+            break
+        if pageno == 1:
+            first = now[0]
+        schools += now
+        pageno += 1
     return [TABLE_HEAD] + schools
 def getSchoolMajorList(url,get_subj = False,output_fp = None):
     '''
-    根据url获取学校信息
+    根据url获取学校某专业信息
 
     Parameters
     ----------
@@ -114,15 +131,12 @@ def getSchoolMajorList(url,get_subj = False,output_fp = None):
     list[list]  get_subj==False时 包含每个专业信息的列表。每个专业信息包括学院、专业名、研究方向、学习方式、招生人数和考试科目的URL。\n
     get_subj==True时，最后一列包含考试科目(外国语,业务课1,业务课2)
     '''
-    # TODO:进行一些并发操作
     table_head = ["学院","专业","研究方向","学习方式","招生人数","考试科目URL"]
     if get_subj:
         table_head[5] = "考试科目"
-    # if isinstance(url,list):
-    #     url = url[4]
     if not url.startswith(HOST+"/zsml/querySchAction.do"):
         raise ValueError("非法的URL地址")
-    respo = _http.request("GET",url=url)
+    respo = __http.request("GET",url=url)
     tree = etree.HTML(respo.data.decode("utf-8"))
     trs = tree.xpath("//body/div//table[@class=\"ch-table more-content\"]/tbody/tr")
     majors = []
@@ -139,9 +153,9 @@ def getSchoolMajorList(url,get_subj = False,output_fp = None):
         else:
             subjects = getExamSubjects(url=exam_url)
             majors.append([faculty,major,rsch_dr,stype,popu,subjects])
-    
     if output_fp is not None:
         save([table_head] + majors,output_fp)
+        output_fp.close()
     return [table_head] + majors
 def getExamSubjects(url):
     '''
@@ -165,7 +179,7 @@ def getExamSubjects(url):
     '''
     if not url.startswith(HOST+"/zsml/kskm.jsp"):
         raise ValueError("非法的URL地址")
-    respo = _http.request("GET",url=url)
+    respo = __http.request("GET",url=url)
     tree = etree.HTML(respo.data.decode("utf-8"))
     tr = tree.xpath("//body//div[@class=\"zsml-result\"]/table/tbody/tr")[0]
     lang = tr.xpath("./td[2]/text()")[0].strip()
@@ -173,11 +187,16 @@ def getExamSubjects(url):
     major2 = tr.xpath("./td[4]/text()")[0].strip()
     return _remove_redundant(lang),major1,major2 # 英语一般不用代号
 def save(mresult,file=sys.stdout):
-    '''将getSchoolMajorList查询到的结果mresult保存为文件。'''
-    for result in mresult:
-        result.extend(result[5])
-        result.__delitem__(5)
-        file.write(','.join(result) + '\n')
+    '''将getSchoolMajorList查询到的结果mresult保存到file中。'''
+    if mresult[0][5] == "考试科目":
+        file.write(','.join(mresult[0]) + '\n')
+        for result in mresult[1:]:
+            result.extend(result[5])
+            result.__delitem__(5)
+            file.write(','.join(result) + '\n')
+    else:
+        for result in mresult:
+            file.write(','.join(result) + '\n')
 # if __name__ == "__main__":
 #     from multiprocessing.pool import ThreadPool
 #     sbj = input("输入专业代码 ")
