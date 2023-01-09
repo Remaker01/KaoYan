@@ -16,6 +16,7 @@ def showResult(lst:Iterable):
 if __name__ == "__main__":
     _pool = ThreadPool(processes=5)
     print("欢迎使用考研信息查询系统")
+    _fps = []
     while True:
         print("\n请输入下列操作之一\n1: 查询专业")
         print("2: 查询详细信息")
@@ -35,6 +36,7 @@ if __name__ == "__main__":
                 print("结果较多，将把所有结果写入csv文件")
                 for item in schools[1:]:
                     fp = open(item[0] + ".csv","w",newline='\n')
+                    _fps.append(fp)
                     _pool.apply_async(kaoyan.getSchoolMajorList,args=(item[4],True,fp))
             else:
                 mresult = kaoyan.getSchoolMajorList(schools[1][4],get_subj=True)
@@ -46,3 +48,5 @@ if __name__ == "__main__":
                     fp.close()
     _pool.close()
     _pool.join()
+    for fp in _fps:
+        fp.close()

@@ -14,7 +14,8 @@ for each in all:\n
 from urllib3.poolmanager import PoolManager
 import json,re,sys
 from lxml import etree
-HOST = "https://yz.chsi.com.cn"
+from typing import Final
+HOST:Final = "https://yz.chsi.com.cn"
 _head = {
     "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:90.0) Gecko/20100101 Firefox/91.0",
     "Accept":"gzip, deflate",
@@ -29,6 +30,8 @@ def _get_location_index(loc:str):
     if len(__province_table) == 0:
         respo = __http.request_encode_body("POST",url=HOST + "/zsml/pages/getSs.jsp")
         __province_table = json.loads(respo.data)
+    if len(loc) == 0:
+        return ""
     for item in __province_table:
         if item["mc"] == loc:
             return item["dm"]
@@ -73,7 +76,7 @@ def getSchoolList(subject,location="",school="",stype="",majoring=""):
     subject:学科类别(代码)，必填项\n
     location:地域,默认为空。如果不给定或给定错误省份将在全国范围内搜索\n
     school:学校,默认为空\n
-    stype:学习方式,"全日制"("1") or "非全日制"("2"),默认为空\n
+    stype:学习方式,"全日制"("1") or "非全日制"("2"),默认为空,即全部包含\n
     majoring:专业名称,即二级学科名称
 
     Returns:
@@ -82,6 +85,12 @@ def getSchoolList(subject,location="",school="",stype="",majoring=""):
     每个学校信息是包括学校名、省份、是否有研究生院、是否为自划线以及详细信息URL的列表
     '''
     TABLE_HEAD = ["招生单位","所在地","研究生院","自划线院校","URL"]
+    try:
+        int(subject)
+    except ValueError:
+        raise NotImplementedError("暂不支持输入学科名称查询")
+    if isinstance(stype,int):
+        stype = str(stype)
     xxfs = stype # issue2:注意xxfs必须存在(不要在if里定义变量)
     if stype == "全日制":
         xxfs = "1"
@@ -129,7 +138,7 @@ def getSchoolMajorList(url,get_subj = False,output_fp = None):
     Returns
     -------
     list[list]  get_subj==False时 包含每个专业信息的列表。每个专业信息包括学院、专业名、研究方向、学习方式、招生人数和考试科目的URL。\n
-    get_subj==True时，最后一列包含考试科目(外国语,业务课1,业务课2)
+    get_subj==True时，最后一列包含考试科目
     '''
     table_head = ["学院","专业","研究方向","学习方式","招生人数","考试科目URL"]
     if get_subj:
@@ -155,7 +164,6 @@ def getSchoolMajorList(url,get_subj = False,output_fp = None):
             majors.append([faculty,major,rsch_dr,stype,popu,subjects])
     if output_fp is not None:
         save([table_head] + majors,output_fp)
-        output_fp.close()
     return [table_head] + majors
 def getExamSubjects(url):
     '''
@@ -171,18 +179,25 @@ def getExamSubjects(url):
 
     Returns
     -------
-    包含下列元素的tuple:\n
+    对于一般专业，返回包含下列元素的tuple:\n
     lang:外国语科目
     major1:专业课1科目
-    major2:专业课2科目
+    major2:专业课2科目\n
+    对于考查管理类联考的专业，返回包含"(199)管理类综合能力"与外国语科目的tuple
 
+    Notes
+    -------
+    对于某些专业(如教育学、临床医学等)，由于很多学校只有一门专业课，故专业课2显示为"无"
     '''
     if not url.startswith(HOST+"/zsml/kskm.jsp"):
         raise ValueError("非法的URL地址")
     respo = __http.request("GET",url=url)
     tree = etree.HTML(respo.data.decode("utf-8"))
     tr = tree.xpath("//body//div[@class=\"zsml-result\"]/table/tbody/tr")[0]
+    politics = tr.xpath("./td[1]/text()")[0].strip() # 政治或管理类联考
     lang = tr.xpath("./td[2]/text()")[0].strip()
+    if politics.count("199") != 0:
+        return politics,_remove_redundant(lang)
     major1 = tr.xpath("./td[3]/text()")[0].strip()
     major2 = tr.xpath("./td[4]/text()")[0].strip()
     return _remove_redundant(lang),major1,major2 # 英语一般不用代号
