@@ -33,11 +33,11 @@ if __name__ == "__main__":
             showResult(schools)
         elif choice == '2':
             if len(schools) > 2:
-                print("结果较多，将把所有结果写入csv文件")
-                for item in schools[1:]:
-                    fp = open(item[0] + ".csv","w",newline='\n')
-                    _fps.append(fp)
-                    _pool.apply_async(kaoyan.getSchoolMajorList,args=(item[4],True,fp))
+                if input("结果较多，按y把所有结果写入csv文件 ").lower() == 'y':
+                    for item in schools[1:]:
+                        fp = open(item[0] + ".csv","w",newline='\n')
+                        _fps.append(fp)
+                        _pool.apply_async(kaoyan.getSchoolMajorList,args=(item[4],True,fp))
             else:
                 mresult = kaoyan.getSchoolMajorList(schools[1][4],get_subj=True)
                 showResult(mresult)

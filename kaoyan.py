@@ -14,8 +14,8 @@ for each in all:\n
 from urllib3.poolmanager import PoolManager
 import json,re,sys
 from lxml import etree
-from typing import Final
-HOST:Final = "https://yz.chsi.com.cn"
+HOST = "https://yz.chsi.com.cn"
+'''请求的主机，即研招网主页。请勿更改此值'''
 _head = {
     "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:90.0) Gecko/20100101 Firefox/91.0",
     "Accept":"gzip, deflate",
@@ -67,6 +67,32 @@ def _get_schoollist_one_page(data:dict,pageno=1):
         info = [name,_remove_redundant(loc),str(gdu_instit),str(zi_huaxian),sub_url]
         schools.append(info)
     return schools
+def _get_majorlist_one_page(url:str,pageno=1,get_subj = False):
+    loc = url.find("&pageno")
+    if loc >= 0:
+        url = url[0:loc]
+    url += "&pageno=%d"%pageno
+    respo = __http.request("GET",url=url)
+    tree = etree.HTML(respo.data.decode("utf-8"))
+    trs = tree.xpath("//body/div//table[@class=\"ch-table more-content\"]/tbody/tr")
+    majors = []
+    for tr in trs:
+        faculty = tr.xpath("./td[2]/text()")
+        if len(faculty) == 0:
+            return []
+        faculty = faculty[0]
+        major = tr.xpath("./td[3]/text()")[0]
+        rsch_dr = tr.xpath("./td[4]/text()")[0] # research_direction
+        stype = tr.xpath("./td[5]/text()")[0] # study_type
+        script = tr.xpath("./td[7]/script/text()")[0]
+        popu = _get_number_from_script(script) #population
+        exam_url = HOST + tr.xpath("./td[8]/a/@href")[0]
+        if not get_subj:
+            majors.append([faculty,major,rsch_dr,stype,popu,exam_url])
+        else:
+            subjects = getExamSubjects(url=exam_url)
+            majors.append([faculty,major,rsch_dr,stype,popu,subjects])
+    return majors
 def getSchoolList(subject,location="",school="",stype="",majoring=""):
     '''
     获取学校列表
@@ -98,10 +124,8 @@ def getSchoolList(subject,location="",school="",stype="",majoring=""):
         xxfs = "2"
     elif stype != "1" and stype != "2" and len(stype)>0:
         raise ValueError("非法的学习方式")
-    loc = _get_location_index(location)
-    schools = []
     data = {
-        "ssdm":loc, # 省市代码
+        "ssdm":_get_location_index(location), # 省市代码
         "dwmc":school, # 单位名称
         "mldm":"", # 门类代码
         "mlmc":"",
@@ -111,7 +135,7 @@ def getSchoolList(subject,location="",school="",stype="",majoring=""):
     }
     # print("已封装请求数据",data)
     pageno = 1
-    first = [] # 第一页的第一所高校，如果某一页第一所和第一页的一样就认为页数已经超出
+    schools,first = [],[] # 第一页的第一所高校，如果某一页第一所和第一页的一样就认为页数已经超出
     while True:
         now = _get_schoollist_one_page(data,pageno)
         if len(now) == 0 or now[0] == first:
@@ -128,7 +152,7 @@ def getSchoolMajorList(url,get_subj = False,output_fp = None):
     Parameters
     ----------
     url:包含考试科目的url\n
-    get_subj:bool  是否包含考试科目\n
+    get_subj:bool  是否包含考试科目,默认False\n
     output_fp:输出文件，默认为None
 
     Raises
@@ -145,23 +169,16 @@ def getSchoolMajorList(url,get_subj = False,output_fp = None):
         table_head[5] = "考试科目"
     if not url.startswith(HOST+"/zsml/querySchAction.do"):
         raise ValueError("非法的URL地址")
-    respo = __http.request("GET",url=url)
-    tree = etree.HTML(respo.data.decode("utf-8"))
-    trs = tree.xpath("//body/div//table[@class=\"ch-table more-content\"]/tbody/tr")
-    majors = []
-    for tr in trs:
-        faculty = tr.xpath("./td[2]/text()")[0] 
-        major = tr.xpath("./td[3]/text()")[0]
-        rsch_dr = tr.xpath("./td[4]/text()")[0] # research_direction
-        stype = tr.xpath("./td[5]/text()")[0] # study_type
-        script = tr.xpath("./td[7]/script/text()")[0]
-        popu = _get_number_from_script(script) #population
-        exam_url = HOST + tr.xpath("./td[8]/a/@href")[0]
-        if not get_subj:
-            majors.append([faculty,major,rsch_dr,stype,popu,exam_url])
-        else:
-            subjects = getExamSubjects(url=exam_url)
-            majors.append([faculty,major,rsch_dr,stype,popu,subjects])
+    majors,first = [],[]
+    pageno = 1
+    while True:
+        now = _get_majorlist_one_page(url,pageno,get_subj)
+        if len(now) == 0 or now[0] == first:
+            break
+        if pageno == 1:
+            first = now[0]
+        majors += now
+        pageno += 1
     if output_fp is not None:
         save([table_head] + majors,output_fp)
     return [table_head] + majors
@@ -196,14 +213,14 @@ def getExamSubjects(url):
     tr = tree.xpath("//body//div[@class=\"zsml-result\"]/table/tbody/tr")[0]
     politics = tr.xpath("./td[1]/text()")[0].strip() # 政治或管理类联考
     lang = tr.xpath("./td[2]/text()")[0].strip()
-    if politics.count("199") != 0:
+    if politics.find("199") >= 0:
         return politics,_remove_redundant(lang)
     major1 = tr.xpath("./td[3]/text()")[0].strip()
     major2 = tr.xpath("./td[4]/text()")[0].strip()
     return _remove_redundant(lang),major1,major2 # 英语一般不用代号
 def save(mresult,file=sys.stdout):
     '''将getSchoolMajorList查询到的结果mresult保存到file中。'''
-    if mresult[0][5] == "考试科目":
+    if mresult[0][-1] == "考试科目":
         file.write(','.join(mresult[0]) + '\n')
         for result in mresult[1:]:
             result.extend(result[5])
@@ -212,14 +229,3 @@ def save(mresult,file=sys.stdout):
     else:
         for result in mresult:
             file.write(','.join(result) + '\n')
-# if __name__ == "__main__":
-#     from multiprocessing.pool import ThreadPool
-#     sbj = input("输入专业代码 ")
-#     sch = input("输入学校 ")
-#     results = getSchoolList(subject=sbj,location="",school=sch,stype="全日制")
-#     _pool = ThreadPool(processes=5)
-#     for item in results[1:]:
-#         fp = open(item[0] + ".csv","w",newline='\n')
-#         _pool.apply_async(getSchoolMajorList,args=(item[4],True,fp))
-#     _pool.close()
-#     _pool.join()
