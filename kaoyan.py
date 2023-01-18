@@ -17,7 +17,7 @@ from lxml import etree
 HOST = "https://yz.chsi.com.cn"
 '''请求的主机，即研招网主页。请勿更改此值'''
 _head = {
-    "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:90.0) Gecko/20100101 Firefox/91.0",
+    "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101 Firefox/91.0",
     "Accept":"gzip, deflate",
     "Referer":HOST + "/zsml/zyfx_search.jsp",
     "Connection":"keep-alive"
@@ -36,6 +36,21 @@ def _get_location_index(loc:str):
         if item["mc"] == loc:
             return item["dm"]
     return ""
+def _get_complete_pname(name:str):
+    '''获取完整省份名'''
+    if name.endswith(("省","自治区","市")):
+        return name
+    if name == "新疆":
+        return "新疆维吾尔自治区"
+    if name == "广西":
+        return "广西壮族自治区"
+    if name == "宁夏":
+        return "宁夏回族自治区"
+    if name in ("西藏","内蒙古"):
+        return name + "自治区"
+    if name in ("北京","天津","上海","重庆"):
+        return name + "市"
+    return name + "省"
 def _remove_redundant(str_with_index:str):
     '''传入带编号的数字，去除冗余部分(括号+内部的数字)'''
     RE = re.compile("\([0-9]+\)")
@@ -124,6 +139,7 @@ def getSchoolList(subject,location="",school="",stype="",majoring=""):
         xxfs = "2"
     elif stype != "1" and stype != "2" and len(stype)>0:
         raise ValueError("非法的学习方式")
+    location = _get_complete_pname(location)
     data = {
         "ssdm":_get_location_index(location), # 省市代码
         "dwmc":school, # 单位名称
@@ -133,7 +149,7 @@ def getSchoolList(subject,location="",school="",stype="",majoring=""):
         "zymc":majoring,
         "xxfs":xxfs # 学习方式
     }
-    # print("已封装请求数据",data)
+    # print(data)
     pageno = 1
     schools,first = [],[] # 第一页的第一所高校，如果某一页第一所和第一页的一样就认为页数已经超出
     while True:

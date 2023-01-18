@@ -9,7 +9,7 @@ class TestKaoyan(TestCase):
     def test_getSchoolList(self):
         # 1. 包含地区名、学校名(与地区对应)、学科代码、专业名
         result_seu_0839 = kaoyan.getSchoolList(subject="0839",location="江苏省",school="东南大学",majoring="网络空间安全")
-        self.assertEqual(result_seu_0839[0],self._result_seu_0839[0])
+        self.assertEqual(result_seu_0839[1],self._result_seu_0839[1])
         # 2.与上述相同,但学校名与地区不对应
         result_seu_0839_wrong = kaoyan.getSchoolList(subject="0839",location="江西省",school="东北大学",majoring="网络空间安全")
         self.assertEqual(len(result_seu_0839_wrong), 1)
@@ -25,7 +25,10 @@ class TestKaoyan(TestCase):
         # 6.学习方式为1
         result_0775_2 = kaoyan.getSchoolList(subject="0775",stype=1)
         self.assertListEqual(result_0775,result_0775_2)
-        # 7. 错误
+        # 7. 省份名称不完整
+        result_shanghai_0839 = kaoyan.getSchoolList(subject="0839",location="上海",majoring="网络空间安全")
+        self.assertEqual(len(result_shanghai_0839),3)
+        # 8. 错误
         with self.assertRaises(NotImplementedError):
             kaoyan.getSchoolList(subject="软件工程",stype="1")
     def test_getMajorList(self):

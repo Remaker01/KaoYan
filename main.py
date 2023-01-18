@@ -4,6 +4,8 @@ from multiprocessing.pool import ThreadPool
 def query():
     school = input("输入查询的学校 ")
     major = input("输入查询的学科类别代码(必填) ")
+    while len(major) == 0:
+        major = input("学科类别代码为必填项，请重新输入 ")
     majoring = input("输入查询的专业的名称 ")
     non_fullday = input("是否包含非全日制?按y表示包含,其他表示不包含 ")
     return school,major[0:4],majoring,non_fullday.lower() == 'y'
