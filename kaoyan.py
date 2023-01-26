@@ -1,5 +1,5 @@
 '''
-从研招网爬取研究生招生信息\n
+从研招网获取研究生招生信息\n
 使用示例\n
 import kaoyan\n
 all = kaoyan.getSchoolList(subject="0839",stype="全日制")\n
@@ -38,7 +38,7 @@ def _get_location_index(loc:str):
     return ""
 def _get_complete_pname(name:str):
     '''获取完整省份名'''
-    if name.endswith(("省","自治区","市")):
+    if name.endswith(("省","自治区","市")) or len(name) == 0:
         return name
     if name == "新疆":
         return "新疆维吾尔自治区"
@@ -234,14 +234,15 @@ def getExamSubjects(url):
     major1 = tr.xpath("./td[3]/text()")[0].strip()
     major2 = tr.xpath("./td[4]/text()")[0].strip()
     return _remove_redundant(lang),major1,major2 # 英语一般不用代号
-def save(mresult,file=sys.stdout):
-    '''将getSchoolMajorList查询到的结果mresult保存到file中。'''
+def save(mresult,file=sys.stdout,delimiter=','):
+    '''将getSchoolMajorList查询到的结果mresult保存到file中，以delimiter分隔'''
+    delimiter = delimiter[0]
     if mresult[0][-1] == "考试科目":
-        file.write(','.join(mresult[0]) + '\n')
+        file.write(delimiter.join(mresult[0]) + '\n')
         for result in mresult[1:]:
             result.extend(result[5])
             result.__delitem__(5)
-            file.write(','.join(result) + '\n')
+            file.write(delimiter.join(result) + '\n')
     else:
         for result in mresult:
-            file.write(','.join(result) + '\n')
+            file.write(delimiter.join(result) + '\n')

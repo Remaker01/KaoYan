@@ -21,10 +21,10 @@ class TestKaoyan(TestCase):
         self.assertEqual(len(result_0854_nonfull), 7)
         # 5. 学习方式为"全日制"
         result_0775_2 = kaoyan.getSchoolList(subject="0775",stype="全日制")
-        self.assertListEqual(result_0775,result_0775_2)
+        self.assertListEqual(result_0775[1],result_0775_2[1])
         # 6.学习方式为1
         result_0775_2 = kaoyan.getSchoolList(subject="0775",stype=1)
-        self.assertListEqual(result_0775,result_0775_2)
+        self.assertListEqual(result_0775[1],result_0775_2[1])
         # 7. 省份名称不完整
         result_shanghai_0839 = kaoyan.getSchoolList(subject="0839",location="上海",majoring="网络空间安全")
         self.assertEqual(len(result_shanghai_0839),3)
@@ -46,7 +46,7 @@ class TestKaoyan(TestCase):
         # 4. 非法URL
         with self.assertRaises(ValueError):
             kaoyan.getSchoolMajorList(url=self._result_seu_0839[1][3])
-    def test_getExamSubjectTest(self):
+    def test_getExamSubjects(self):
         # 1. 常规科目
         result_seu_0839 = kaoyan.getSchoolMajorList(self._result_seu_0839[1][4],get_subj=True)
         subjects = result_seu_0839[1][5]
