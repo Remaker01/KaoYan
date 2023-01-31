@@ -64,7 +64,7 @@ def _get_number_from_script(script:str):
 def _get_schoollist_one_page(data:dict,pageno=1):
     schools = []
     data.update({"pageno":str(pageno)})
-    respo = __http.request_encode_url("POST",url=HOST+"/zsml/queryAction.do",fields=data) # 注意data是标在url上，所以要指明encode_url
+    respo = __http.request_encode_body("POST",url=HOST+"/zsml/queryAction.do",fields=data,encode_multipart=False)
     tree = etree.HTML(respo.data.decode("utf-8"))
     trs = tree.xpath("//body//div//table[@class=\"ch-table\"]/tbody/tr")
     # print(trs)
@@ -143,7 +143,7 @@ def getSchoolList(subject,location="",school="",stype="",majoring=""):
     data = {
         "ssdm":_get_location_index(location), # 省市代码
         "dwmc":school, # 单位名称
-        "mldm":"", # 门类代码
+        "mldm":subject[0:2], # 门类代码
         "mlmc":"",
         "yjxkdm":subject, # 学科代码
         "zymc":majoring,

@@ -3,3 +3,4 @@ __pycache__/*
 *学院.csv
 compile.cmd
 out.csv
+*.exe

@@ -20,7 +20,7 @@ if __name__ == "__main__":
     print("欢迎使用考研信息查询系统")
     _fps = []
     while True:
-        print("\n请输入下列操作之一\n1: 查询专业")
+        print("\n请输入下列操作之一\n1: 查询院校")
         print("2: 查询详细信息")
         print("其他任意键: 退出")
         choice = input()
@@ -43,7 +43,7 @@ if __name__ == "__main__":
             else:
                 mresult = kaoyan.getSchoolMajorList(schools[1][4],get_subj=True)
                 showResult(mresult)
-                x = input("按y保存 ")
+                x = input("按y保存为csv ")
                 if x.lower() == 'y':
                     fp = open(school + ".csv","w",newline='\n')
                     kaoyan.save(mresult,file=fp)
