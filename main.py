@@ -1,6 +1,7 @@
 import kaoyan
 from typing import Iterable
 from multiprocessing.pool import ThreadPool
+import os
 def query():
     school = input("输入查询的学校 ")
     major = input("输入查询的学科类别代码(必填) ")
@@ -16,6 +17,15 @@ def showResult(lst:Iterable):
             print(x,'\t',end='')
         print('')
 if __name__ == "__main__":
+    try:
+        fp_loc = open("loc.txt","r",encoding="utf-8")
+        os.chdir(fp_loc.read(1024))
+        fp_loc.close()
+    except OSError:
+        print("若要自定义结果保存路径,请在loc.txt中写入并放在与本程序同一目录下")
+        fp_loc = open("loc.txt","w",encoding="utf-8")
+        fp_loc.write(os.getcwd())
+        fp_loc.close()
     _pool = ThreadPool(processes=5)
     print("欢迎使用考研信息查询系统")
     _fps = []
