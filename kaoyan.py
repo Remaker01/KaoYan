@@ -11,6 +11,7 @@ for each in all:\n
     fp = open(each[0],"w")\n
     pool.apply_async(kaoyan.getSchoolMajorList(each[4],False,fp))
 '''
+__version__ = "2.0"
 from urllib3.poolmanager import PoolManager
 import json,re,sys
 from lxml import etree
@@ -53,7 +54,7 @@ def _get_complete_pname(name:str):
     return name + "省"
 def _remove_redundant(str_with_index:str):
     '''传入带编号的数字，去除冗余部分(括号+内部的数字)'''
-    RE = re.compile("\([0-9]+\)")
+    RE = re.compile(r"\([0-9]+\)")
     _find = RE.findall(str_with_index)
     return str_with_index.replace(_find[0],"")
 def _get_number_from_script(script:str):
@@ -108,6 +109,35 @@ def _get_majorlist_one_page(url:str,pageno=1,get_subj = False):
             subjects = getExamSubjects(url=exam_url)
             majors.append([faculty,major,rsch_dr,stype,popu,subjects])
     return majors
+def getSubjectCode(name,dtype="xs"):
+    '''
+    获取专业名称对应的代码
+
+    Parameters:
+    --------------
+    name:专业名称
+    dtype:学位类型，"xs"(学术学位)或"zx"(专业学位)
+
+    Returns:
+    -----------
+    list[tuple]:包含专业名称与代码的列表
+    '''
+    if dtype not in ("xs","zx"):
+        raise ValueError("学位类型错误")
+    result = []
+    data = {"zymc":name,"xwlx":"30"+dtype}
+    _respo = __http.request("GET",HOST+"/zyk/specialityByName.do",fields=data)
+    tree = etree.HTML(_respo.data.decode())
+    trs = tree.xpath("//body/div[1]/div[3]/div[3]/table[@class=\"ch-table\"]/tr") # 这个网页没有tbody，但浏览器调试会自动加上
+    #/html/body/div[1]/div[3]/div[3]/table/tbody/tr[2]
+    for tr in trs:
+        major_name = tr.xpath("./td[1]/a/text()")
+        if len(major_name) == 0:
+            continue
+        major_name = major_name[0]
+        code = tr.xpath("./td[2]/text()")[0]
+        result.append((major_name,code))
+    return [("名称","代码")] + result
 def getSchoolList(subject,location="",school="",stype="",majoring=""):
     '''
     获取学校列表

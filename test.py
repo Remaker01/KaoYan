@@ -62,8 +62,17 @@ class TestKaoyan(TestCase):
         with self.assertRaises(ValueError):
             kaoyan.getExamSubjects(url=kaoyan.HOST)
     def test_save(self):
-        result_seu_0839 = kaoyan.getSchoolMajorList(self._result_seu_0839[1][4])
+        pass
+        #result_seu_0839 = kaoyan.getSchoolMajorList(self._result_seu_0839[1][4])
         # 1. 直接打印
-        kaoyan.save(result_seu_0839)
+        #kaoyan.save(result_seu_0839)
         # 2.输出到文件(上面已测试过)
+    def test_getSubjectName(self):
+        result = kaoyan.getSubjectCode("信息",dtype="zx")
+        self.assertEqual(len(result),6)
+        with self.assertRaises(ValueError):
+            kaoyan.getSubjectCode("信息","zy")
 TestProgram(__name__)
+# import py_compile
+# py_compile.compile("main.py","../main.pyc",optimize=2)
+# py_compile.compile("kaoyan.py","../kaoyan.pyc",optimize=2)

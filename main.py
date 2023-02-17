@@ -16,6 +16,13 @@ def showResult(lst:Iterable):
         for x in item:
             print(x,'\t',end='')
         print('')
+def subcode():
+    zy,dtype = input("输入专业名称 "),input("输入类型，学硕xs,专硕zx ").lower()
+    while True:    
+        try:
+            return kaoyan.getSubjectCode(zy,dtype)
+        except ValueError:
+            dtype = input("类型错误，请重新输入 ").lower()
 if __name__ == "__main__":
     try:
         fp_loc = open("loc.txt","r",encoding="utf-8")
@@ -32,10 +39,14 @@ if __name__ == "__main__":
     while True:
         print("\n请输入下列操作之一\n1: 查询院校")
         print("2: 查询详细信息")
+        print("3: 查询专业代码")
         print("其他任意键: 退出")
         choice = input()
-        if choice != '1' and choice != '2':
+        if choice != '1' and choice != '2' and choice != '3':
             break # issue1:特殊情况必须首先立即处理
+        if choice == '3':
+            showResult(subcode())
+            continue
         school,major,majoring,non_full = query()
         schools = kaoyan.getSchoolList(subject=major,school=school,stype="" if non_full else "全日制",majoring=majoring)
         if len(schools) == 1:
@@ -60,5 +71,4 @@ if __name__ == "__main__":
                     fp.close()
     _pool.close()
     _pool.join()
-    for fp in _fps:
-        fp.close()
+    for fp in _fps:fp.close()
