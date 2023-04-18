@@ -33,42 +33,45 @@ if __name__ == "__main__":
         fp_loc = open("loc.txt","w",encoding="utf-8")
         fp_loc.write(os.getcwd())
         fp_loc.close()
-    _pool = ThreadPool(processes=5)
     print("欢迎使用考研信息查询系统")
+    _pool = ThreadPool(processes=5)
     _fps = []
-    while True:
-        print("\n请输入下列操作之一\n1: 查询院校")
-        print("2: 查询详细信息")
-        print("3: 查询专业代码")
-        print("其他任意键: 退出")
-        choice = input()
-        if choice != '1' and choice != '2' and choice != '3':
-            break # issue1:特殊情况必须首先立即处理
-        if choice == '3':
-            showResult(subcode())
-            continue
-        school,major,majoring,non_full = query()
-        schools = kaoyan.getSchoolList(subject=major,school=school,stype="" if non_full else "全日制",majoring=majoring)
-        if len(schools) == 1:
-            print("本次未查询到任何结果")
-            continue
-        if choice == '1':
-            showResult(schools)
-        elif choice == '2':
-            if len(schools) > 2:
-                if input("结果较多，按y把所有结果写入csv文件 ").lower() == 'y':
-                    for item in schools[1:]:
-                        fp = open(item[0] + ".csv","w",newline='\n')
-                        _fps.append(fp)
-                        _pool.apply_async(kaoyan.getSchoolMajorList,args=(item[4],True,fp))
-            else:
-                mresult = kaoyan.getSchoolMajorList(schools[1][4],get_subj=True)
-                showResult(mresult)
-                x = input("按y保存为csv ")
-                if x.lower() == 'y':
-                    fp = open(school + ".csv","w",newline='\n')
-                    kaoyan.save(mresult,file=fp)
-                    fp.close()
-    _pool.close()
-    _pool.join()
-    for fp in _fps:fp.close()
+    try:
+        while True:
+            print("\n请输入下列操作之一\n1: 查询院校")
+            print("2: 查询详细信息")
+            print("3: 查询专业代码")
+            print("其他任意键: 退出")
+            choice = input()
+            if choice != '1' and choice != '2' and choice != '3':
+                break # issue1:特殊情况必须首先立即处理
+            if choice == '3':
+                showResult(subcode())
+                continue
+            school,major,majoring,non_full = query()
+            schools = kaoyan.getSchoolList(subject=major,school=school,stype="" if non_full else "全日制",majoring=majoring)
+            if len(schools) == 1:
+                print("本次未查询到任何结果")
+                continue
+            if choice == '1':
+                showResult(schools)
+            elif choice == '2':
+                if len(schools) > 2:
+                    if input("结果较多，按y把所有结果写入csv文件 ").lower() == 'y':
+                        for item in schools[1:]:
+                            fp = open(item[0] + major + majoring + ".csv","w",newline='\n')
+                            _fps.append(fp)
+                            _pool.apply_async(kaoyan.getSchoolMajorList,args=(item[4],True,fp))
+                else:
+                    mresult = kaoyan.getSchoolMajorList(schools[1][4],get_subj=True)
+                    showResult(mresult)
+                    x = input("按y保存为csv ")
+                    if x.lower() == 'y':
+                        fp = open(school + major + majoring + ".csv","w",newline='\n')
+                        kaoyan.save(mresult,file=fp)
+                        fp.close()
+    finally:
+        _pool.close()
+        print("将在后台完成写入过程，请稍后")
+        _pool.join()
+        for fp in _fps:fp.close()

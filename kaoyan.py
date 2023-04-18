@@ -138,7 +138,7 @@ def getSubjectCode(name,dtype="xs"):
         code = tr.xpath("./td[2]/text()")[0]
         result.append((major_name,code))
     return [("名称","代码")] + result
-def getSchoolList(subject,location="",school="",stype="",majoring=""):
+def getSchoolList(subject,location="",school="",stype="",majoring="",page_limit=100):
     '''
     获取学校列表
 
@@ -182,7 +182,7 @@ def getSchoolList(subject,location="",school="",stype="",majoring=""):
     # print(data)
     pageno = 1
     schools,first = [],[] # 第一页的第一所高校，如果某一页第一所和第一页的一样就认为页数已经超出
-    while True:
+    while pageno <= page_limit:
         now = _get_schoollist_one_page(data,pageno)
         if len(now) == 0 or now[0] == first:
             break
@@ -191,7 +191,7 @@ def getSchoolList(subject,location="",school="",stype="",majoring=""):
         schools += now
         pageno += 1
     return [TABLE_HEAD] + schools
-def getSchoolMajorList(url,get_subj = False,output_fp = None):
+def getSchoolMajorList(url,get_subj = False,output_fp = None,page_limit=100):
     '''
     根据url获取学校某专业信息
 
@@ -203,7 +203,7 @@ def getSchoolMajorList(url,get_subj = False,output_fp = None):
 
     Raises
     ------
-    当URL不符合给定格式时，引发ValueError
+    当URL不符合给定格式时，抛出ValueError
 
     Returns
     -------
@@ -217,7 +217,7 @@ def getSchoolMajorList(url,get_subj = False,output_fp = None):
         raise ValueError("非法的URL地址")
     majors,first = [],[]
     pageno = 1
-    while True:
+    while pageno <= page_limit:
         now = _get_majorlist_one_page(url,pageno,get_subj)
         if len(now) == 0 or now[0] == first:
             break
@@ -238,7 +238,7 @@ def getExamSubjects(url):
 
     Raises
     ------
-    当URL不是包含考试科目的URL时，引发ValueError
+    当URL不是包含考试科目的URL时，抛出ValueError
 
     Returns
     -------
