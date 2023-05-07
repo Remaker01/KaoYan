@@ -9,7 +9,7 @@ details_with_subjs = kaoyan.getSchoolMajorList(all[2][4],get_subj=True)\n
 pool = ThreadPool()\n
 for each in all:\n
     fp = open(each[0],"w")\n
-    pool.apply_async(kaoyan.getSchoolMajorList(each[4],False,fp))
+    pool.apply_async(kaoyan.getSchoolMajorList,(each[4],False,fp))
 '''
 __version__ = "2.0"
 from urllib3.poolmanager import PoolManager
@@ -30,7 +30,7 @@ def _get_location_index(loc:str):
     global __province_table
     if len(__province_table) == 0:
         respo = __http.request_encode_body("POST",url=HOST + "/zsml/pages/getSs.jsp")
-        __province_table = json.loads(respo.data)
+        __province_table = json.loads(respo.data.decode("utf-8"))
     if len(loc) == 0:
         return ""
     for item in __province_table:

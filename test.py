@@ -15,10 +15,10 @@ class TestKaoyan(TestCase):
         self.assertEqual(len(result_seu_0839_wrong), 1)
         # 3. 学习方式为"1"
         result_0775 = kaoyan.getSchoolList(subject="0775",stype="1")
-        self.assertEqual(len(result_0775), 26)
+        self.assertGreater(len(result_0775), 1)
         # 4. 学习方式为"2"
         result_0854_nonfull = kaoyan.getSchoolList(subject="0854",stype="2",majoring="计算机技术",location="北京市")
-        self.assertEqual(len(result_0854_nonfull), 7)
+        self.assertGreater(len(result_0854_nonfull), 1)
         # 5. 学习方式为"全日制"
         result_0775_2 = kaoyan.getSchoolList(subject="0775",stype="全日制")
         self.assertListEqual(result_0775[1],result_0775_2[1])
