@@ -1,4 +1,5 @@
 __pycache__/*
+dist/*
 *大学.csv
 *学院.csv
 compile.cmd

@@ -60,7 +60,7 @@ class TestKaoyan(TestCase):
         self.assertIn("199",subjects[0])
         # 3. 非法科目
         with self.assertRaises(ValueError):
-            kaoyan.getExamSubjects(url=kaoyan.HOST)
+            kaoyan.getExamSubjects(url="")
     def test_save(self):
         pass
         #result_seu_0839 = kaoyan.getSchoolMajorList(self._result_seu_0839[1][4])

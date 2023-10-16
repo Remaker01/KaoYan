@@ -6,7 +6,7 @@ all = kaoyan.getSchoolList(subject="0839",stype="全日制")\n
 details = kaoyan.getSchoolMajorList(all[1][4])\n
 details_with_subjs = kaoyan.getSchoolMajorList(all[2][4],get_subj=True)\n
     # 获取学校列表后进行并发请求。建议并发时指定输出，直接使用getSchoolMajorList的返回值可导致详细信息和学校不对应\n
-pool = ThreadPool()\n
+pool = multiprocessing.pool.ThreadPool()\n
 for each in all:\n
     fp = open(each[0],"w")\n
     pool.apply_async(kaoyan.getSchoolMajorList,(each[4],False,fp))
@@ -15,12 +15,12 @@ __version__ = "2.0"
 from urllib3.poolmanager import PoolManager
 import json,re,sys
 from lxml import etree
-HOST = "https://yz.chsi.com.cn"
+_HOST = "https://yz.chsi.com.cn"
 '''请求的主机，即研招网主页。请勿更改此值'''
 _head = {
     "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101 Firefox/91.0",
     "Accept":"gzip, deflate",
-    "Referer":HOST + "/zsml/zyfx_search.jsp",
+    "Referer":_HOST + "/zsml/zyfx_search.jsp",
     "Connection":"keep-alive"
 }
 __http = PoolManager(num_pools=3,headers=_head)
@@ -29,7 +29,7 @@ def _get_location_index(loc:str):
     '''将地区名称映射为数字'''
     global __province_table
     if len(__province_table) == 0:
-        respo = __http.request_encode_body("POST",url=HOST + "/zsml/pages/getSs.jsp")
+        respo = __http.request_encode_body("POST",url=_HOST + "/zsml/pages/getSs.jsp")
         __province_table = json.loads(respo.data.decode("utf-8"))
     if len(loc) == 0:
         return ""
@@ -65,7 +65,7 @@ def _get_number_from_script(script:str):
 def _get_schoollist_one_page(data:dict,pageno=1):
     schools = []
     data.update({"pageno":str(pageno)})
-    respo = __http.request_encode_body("POST",url=HOST+"/zsml/queryAction.do",fields=data,encode_multipart=False)
+    respo = __http.request_encode_body("POST",url=_HOST+"/zsml/queryAction.do",fields=data,encode_multipart=False)
     tree = etree.HTML(respo.data.decode("utf-8"))
     trs = tree.xpath("//body//div//table[@class=\"ch-table\"]/tbody/tr")
     # print(trs)
@@ -74,14 +74,13 @@ def _get_schoollist_one_page(data:dict,pageno=1):
         if len(name) == 0:
             return []
         name = name[0]
-        sub_url = HOST + tr.xpath("./td[1]//a/@href")[0] #结构td/frame/a
+        sub_url = _HOST + tr.xpath("./td[1]//a/@href")[0] #结构td/frame/a
         loc = tr.xpath("./td[2]/text()")[0]
         td3 = tr.xpath("./td[3]/i")
         td4 = tr.xpath("./td[4]/i")
         gdu_instit = (len(td3) != 0) # gradute_institude
         zi_huaxian = (len(td4) != 0)
-        info = [name,_remove_redundant(loc),str(gdu_instit),str(zi_huaxian),sub_url]
-        schools.append(info)
+        schools.append([name,_remove_redundant(loc),str(gdu_instit),str(zi_huaxian),sub_url])
     return schools
 def _get_majorlist_one_page(url:str,pageno=1,get_subj = False):
     loc = url.find("&pageno")
@@ -102,7 +101,7 @@ def _get_majorlist_one_page(url:str,pageno=1,get_subj = False):
         stype = tr.xpath("./td[5]/text()")[0] # study_type
         script = tr.xpath("./td[7]/script/text()")[0]
         popu = _get_number_from_script(script) #population
-        exam_url = HOST + tr.xpath("./td[8]/a/@href")[0]
+        exam_url = _HOST + tr.xpath("./td[8]/a/@href")[0]
         if not get_subj:
             majors.append([faculty,major,rsch_dr,stype,popu,exam_url])
         else:
@@ -126,8 +125,8 @@ def getSubjectCode(name,dtype="xs"):
         raise ValueError("学位类型错误")
     result = []
     data = {"zymc":name,"xwlx":"30"+dtype}
-    _respo = __http.request("GET",HOST+"/zyk/specialityByName.do",fields=data)
-    tree = etree.HTML(_respo.data.decode())
+    _respo = __http.request("GET",_HOST+"/zyk/specialityByName.do",fields=data)
+    tree = etree.HTML(_respo.data.decode("utf-8"))
     trs = tree.xpath("//body/div[1]/div[3]/div[3]/table[@class=\"ch-table\"]/tr") # 这个网页没有tbody，但浏览器调试会自动加上
     #/html/body/div[1]/div[3]/div[3]/table/tbody/tr[2]
     for tr in trs:
@@ -213,7 +212,7 @@ def getSchoolMajorList(url,get_subj = False,output_fp = None,page_limit=100):
     table_head = ["学院","专业","研究方向","学习方式","招生人数","考试科目URL"]
     if get_subj:
         table_head[5] = "考试科目"
-    if not url.startswith(HOST+"/zsml/querySchAction.do"):
+    if not url.startswith(_HOST+"/zsml/querySchAction.do"):
         raise ValueError("非法的URL地址")
     majors,first = [],[]
     pageno = 1
@@ -252,7 +251,7 @@ def getExamSubjects(url):
     -------
     对于某些专业(如教育学、临床医学等)，由于很多学校只有一门专业课，故专业课2显示为"无"
     '''
-    if not url.startswith(HOST+"/zsml/kskm.jsp"):
+    if not url.startswith(_HOST+"/zsml/kskm.jsp"):
         raise ValueError("非法的URL地址")
     respo = __http.request("GET",url=url)
     tree = etree.HTML(respo.data.decode("utf-8"))
